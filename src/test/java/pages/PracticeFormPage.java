@@ -7,106 +7,114 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class PracticeFormPage extends BasePage {
+    private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH);
 
     public PracticeFormPage(WebDriver driver) {
         super(driver);
     }
 
     public void enterFirstName(String firstName) {
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("firstName"))).sendKeys(firstName);
+        type(By.id("firstName"), firstName);
     }
 
     public void enterLastName(String lastName) {
-        driver.findElement(By.id("lastName")).sendKeys(lastName);
+        type(By.id("lastName"), lastName);
     }
 
     public void enterEmail(String email) {
-        driver.findElement(By.id("userEmail")).sendKeys(email);
+        type(By.id("userEmail"), email);
     }
 
     public void selectGender(String gender) {
+        if (gender == null) throw new IllegalArgumentException("Gender must be Male, Female, or Other");
         if (gender.equalsIgnoreCase("Male")) {
-            driver.findElement(By.cssSelector("label[for='gender-radio-1']")).click();
+            click(By.cssSelector("label[for='gender-radio-1']"));
         } else if (gender.equalsIgnoreCase("Female")) {
-            driver.findElement(By.cssSelector("label[for='gender-radio-2']")).click();
+            click(By.cssSelector("label[for='gender-radio-2']"));
         } else if (gender.equalsIgnoreCase("Other")) {
-            driver.findElement(By.cssSelector("label[for='gender-radio-3']")).click();
+            click(By.cssSelector("label[for='gender-radio-3']"));
+        } else {
+            throw new IllegalArgumentException("Unsupported gender: " + gender);
         }
     }
 
     public void enterMobile(String mobile) {
-        driver.findElement(By.id("userNumber")).sendKeys(mobile);
+        type(By.id("userNumber"), mobile);
     }
 
-    public void selectDateOfBirth(String dateOfBirth) {
-        String[] date = dateOfBirth.split(" ");
-        String day = String.valueOf(Integer.parseInt(date[0]));
-        String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-        driver.findElement(By.id("dateOfBirthInput")).click();
-        WebElement monthDropdown = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.cssSelector(".react-datepicker__month-select")));
-        Select month = new Select(monthDropdown);
-        for (int i = 0; i < months.length; i++) {
-            if (months[i].equalsIgnoreCase(date[1])) {
-                month.selectByIndex(i);
-                break;
-            }
+    public void selectDateOfBirth(LocalDate date) {
+        if (date == null) throw new IllegalArgumentException("Date of birth must not be null");
+        try {
+            click(By.id("dateOfBirthInput"));
+            WebElement monthDropdown = waitForVisible(By.cssSelector(".react-datepicker__month-select"));
+            Select month = new Select(monthDropdown);
+            String monthName = date.format(MONTH_FORMAT);
+            month.selectByVisibleText(monthName);
+            WebElement yearDropdown = waitForVisible(By.cssSelector(".react-datepicker__year-select"));
+            Select year = new Select(yearDropdown);
+            year.selectByVisibleText(String.valueOf(date.getYear()));
+            By day = By.xpath("//div[contains(@class,'react-datepicker__day--') and not(contains(@class,'outside-month')) and text()='" + date.getDayOfMonth() + "']");
+            click(day);
+        } catch (org.openqa.selenium.NoSuchElementException | org.openqa.selenium.TimeoutException e) {
+            throw new IllegalArgumentException("Date of birth " + date + " is unavailable in the date picker", e);
         }
-        WebElement yearDropdown = driver.findElement(By.cssSelector(".react-datepicker__year-select"));
-        Select year = new Select(yearDropdown);
-        year.selectByVisibleText(date[2]);
-        driver.findElement(By.xpath("//div[contains(@class,'react-datepicker__day--')"
-                + " and not(contains(@class,'outside-month')) and text()='" + day + "']")).click();
     }
 
     public void enterSubject(String subject) {
-        WebElement input = driver.findElement(By.id("subjectsInput"));
-        input.sendKeys(subject);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.cssSelector(".subjects-auto-complete__option")));
-        input.sendKeys(Keys.ENTER);
+        for (String value : subject.split(",")) {
+            String item = value.trim();
+            if (item.isEmpty()) throw new IllegalArgumentException("Subject list contains an empty value");
+            type(By.id("subjectsInput"), item);
+            waitForVisible(By.cssSelector(".subjects-auto-complete__option"));
+            waitForVisible(By.id("subjectsInput")).sendKeys(Keys.ENTER);
+        }
     }
 
     public void selectHobby(String hobby) {
-        if (hobby.equalsIgnoreCase("Sports")) {
-            driver.findElement(By.cssSelector("label[for='hobbies-checkbox-1']")).click();
-        } else if (hobby.equalsIgnoreCase("Reading")) {
-            driver.findElement(By.cssSelector("label[for='hobbies-checkbox-2']")).click();
-        } else if (hobby.equalsIgnoreCase("Music")) {
-            driver.findElement(By.cssSelector("label[for='hobbies-checkbox-3']")).click();
+        if (hobby == null || hobby.trim().isEmpty()) throw new IllegalArgumentException("Hobby must be Sports, Reading, or Music");
+        for (String value : hobby.split(",")) {
+            String item = value.trim();
+            if (item.equalsIgnoreCase("Sports")) {
+                click(By.cssSelector("label[for='hobbies-checkbox-1']"));
+            } else if (item.equalsIgnoreCase("Reading")) {
+                click(By.cssSelector("label[for='hobbies-checkbox-2']"));
+            } else if (item.equalsIgnoreCase("Music")) {
+                click(By.cssSelector("label[for='hobbies-checkbox-3']"));
+            } else {
+                throw new IllegalArgumentException("Unsupported hobby: " + item);
+            }
         }
     }
 
     public void uploadPicture(String picture) {
         String path = System.getProperty("user.dir") + "/src/test/resources/testdata/" + picture;
-        driver.findElement(By.id("uploadPicture")).sendKeys(path);
+        uploadFile(By.id("uploadPicture"), path);
     }
 
     public void enterAddress(String address) {
-        driver.findElement(By.id("currentAddress")).sendKeys(address);
+        type(By.id("currentAddress"), address);
     }
 
     public void selectState(String state) {
-        WebElement input = driver.findElement(By.id("react-select-3-input"));
-        input.sendKeys(state);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("#state [id*='-option-']")));
-        input.sendKeys(Keys.ENTER);
+        type(By.cssSelector("#state input"), state);
+        waitForVisible(By.cssSelector("#state [id*='-option-']"));
+        waitForVisible(By.cssSelector("#state input")).sendKeys(Keys.ENTER);
     }
 
     public void selectCity(String city) {
-        WebElement input = driver.findElement(By.id("react-select-4-input"));
-        input.sendKeys(city);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("#city [id*='-option-']")));
-        input.sendKeys(Keys.ENTER);
+        type(By.cssSelector("#city input"), city);
+        waitForVisible(By.cssSelector("#city [id*='-option-']"));
+        waitForVisible(By.cssSelector("#city input")).sendKeys(Keys.ENTER);
     }
 
     public void clickSubmit() {
-        WebElement button = wait.until(ExpectedConditions.elementToBeClickable(By.id("submit")));
+        WebElement button = waitForClickable(By.id("submit"));
         JavascriptExecutor js = (JavascriptExecutor) driver;
         js.executeScript("arguments[0].scrollIntoView({block: 'center'});", button);
         try {
@@ -117,24 +125,18 @@ public class PracticeFormPage extends BasePage {
     }
 
     public String getConfirmationTitle() {
-        WebElement popupTitle = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.id("example-modal-sizes-title-lg")));
+        WebElement popupTitle = waitForVisible(By.id("example-modal-sizes-title-lg"));
         return popupTitle.getText();
     }
 
     public String getSubmittedValue(String label) {
         By valueLocator = By.xpath("//tr[td[1]='" + label + "']/td[2]");
-        WebElement submittedValue = wait.until(ExpectedConditions.visibilityOfElementLocated(valueLocator));
+        WebElement submittedValue = waitForVisible(valueLocator);
         return submittedValue.getText();
     }
 
     public boolean isFieldInvalid(String fieldId) {
         return !driver.findElements(By.cssSelector("#" + fieldId + ":invalid")).isEmpty();
-    }
-
-    public int getInvalidRequiredFieldCount() {
-        return driver.findElements(By.cssSelector(
-                "#firstName:invalid, #lastName:invalid, input[name='gender']:invalid, #userNumber:invalid")).size();
     }
 
     public boolean isConfirmationDisplayed() {

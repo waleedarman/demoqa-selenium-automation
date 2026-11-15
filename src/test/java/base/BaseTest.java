@@ -1,6 +1,5 @@
 package base;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.openqa.selenium.OutputType;
@@ -23,17 +22,25 @@ public class BaseTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown(ITestResult result) throws IOException {
+    public void tearDown(ITestResult result) {
         if (driver != null) {
             try {
                 if (result.getStatus() == ITestResult.FAILURE) {
-                    Files.createDirectories(Paths.get("screenshots"));
-                    byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-                    String filename = result.getMethod().getMethodName() + "_" + System.currentTimeMillis() + ".png";
-                    Files.write(Paths.get("screenshots", filename), screenshot);
+                    try {
+                        Files.createDirectories(Paths.get("screenshots"));
+                        byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                        String filename = result.getMethod().getMethodName() + "_" + System.currentTimeMillis() + ".png";
+                        Files.write(Paths.get("screenshots", filename), screenshot);
+                    } catch (Exception e) {
+                        System.err.println("Warning: could not save failure screenshot: " + e.getMessage());
+                    }
                 }
             } finally {
-                driver.quit();
+                try {
+                    driver.quit();
+                } catch (Exception e) {
+                    System.err.println("Warning: could not close WebDriver: " + e.getMessage());
+                }
             }
         }
     }
